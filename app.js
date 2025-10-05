@@ -50,12 +50,13 @@ let subscriptionToDeleteId = null;
 // =======================================================================
 // PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY", // Replace with your actual key
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAzw99mWK9lHlMpFpcJ31wrAsrtGZfxj_k",
+  authDomain: "subwatch-subscription-re-567e2.firebaseapp.com",
+  projectId: "subwatch-subscription-re-567e2",
+  storageBucket: "subwatch-subscription-re-567e2.firebasestorage.app",
+  messagingSenderId: "132090557441",
+  appId: "1:132090557441:web:ac16dc7bc8c7bf4ddcbc00",
+  measurementId: "G-01Z35NDF7P"
 };
 // =======================================================================
 
@@ -468,4 +469,5 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     initializeFirebase();
 });
+
 
