@@ -62,12 +62,12 @@ const firebaseConfig = {
 const applyTheme = (theme) => {
     if (theme === 'dark') {
         document.documentElement.classList.add('dark');
-        sunIcon.classList.add('hidden');
-        moonIcon.classList.remove('hidden');
+        sunIcon.classList.remove('hidden'); // В темній темі показуємо сонце (для переходу на світлу)
+        moonIcon.classList.add('hidden');
     } else {
         document.documentElement.classList.remove('dark');
-        sunIcon.classList.remove('hidden');
-        moonIcon.classList.add('hidden');
+        sunIcon.classList.add('hidden');
+        moonIcon.classList.remove('hidden'); // В світлій темі показуємо місяць (для переходу на темну)
     }
 };
 
@@ -551,5 +551,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     initializeFirebase();
 });
+
 
 
