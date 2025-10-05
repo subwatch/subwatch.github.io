@@ -62,12 +62,12 @@ const firebaseConfig = {
 const applyTheme = (theme) => {
     if (theme === 'dark') {
         document.documentElement.classList.add('dark');
-        sunIcon.classList.remove('hidden');
-        moonIcon.classList.add('hidden');
-    } else {
-        document.documentElement.classList.remove('dark');
         sunIcon.classList.add('hidden');
         moonIcon.classList.remove('hidden');
+    } else {
+        document.documentElement.classList.remove('dark');
+        sunIcon.classList.remove('hidden');
+        moonIcon.classList.add('hidden');
     }
 };
 
@@ -551,4 +551,5 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     initializeFirebase();
 });
+
 
