@@ -1,556 +1,542 @@
-'use strict';
-// Firebase Imports
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// --- App Constants ---
-const URGENT_DAYS_THRESHOLD = 3;
-const WARNING_DAYS_THRESHOLD = 7;
-
-// --- DOM Elements ---
-const userProfile = document.getElementById('userProfile');
-const userAvatar = document.getElementById('userAvatar');
-const userName = document.getElementById('userName');
-const signOutBtn = document.getElementById('signOutBtn');
-const signInBtn = document.getElementById('signInBtn');
-const loginContainer = document.getElementById('loginContainer');
-const appContent = document.getElementById('appContent');
-const openModalBtn = document.getElementById('openModalBtn');
-const closeModalBtn = document.getElementById('closeModalBtn');
-const subscriptionModal = document.getElementById('subscriptionModal');
-const modalContent = document.getElementById('modalContent');
-const subscriptionForm = document.getElementById('subscriptionForm');
-const subscriptionsList = document.getElementById('subscriptionsList');
-const emptyState = document.getElementById('emptyState');
-const totalSpendingEl = document.getElementById('totalSpending');
-const notification = document.getElementById('notification');
-const notificationContent = document.getElementById('notificationContent');
-const confirmModal = document.getElementById('confirmModal');
-const confirmCancelBtn = document.getElementById('confirmCancelBtn');
-const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-const themeToggleBtn = document.getElementById('themeToggleBtn');
-const sunIcon = document.getElementById('sunIcon');
-const moonIcon = document.getElementById('moonIcon');
-
-// --- Form Fields ---
-// Змінено з const на let, щоб їх можна було визначити пізніше
-let subscriptionIdField, serviceNameField, amountField, currencyField, billingCycleField, categoryField, nextPaymentDateField, modalTitle;
-
-
-// --- App State ---
-let app, db, auth;
-let userId, subscriptionsCollection;
-let unsubscribe; 
-let subscriptions = [];
-let subscriptionToDeleteId = null;
-
-// =======================================================================
-// PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE
-const firebaseConfig = {
-  apiKey: "AIzaSyAzw99mWK9lHlMpFpcJ31wrAsrtGZfxj_k",
-  authDomain: "subwatch-subscription-re-567e2.firebaseapp.com",
-  projectId: "subwatch-subscription-re-567e2",
-  storageBucket: "subwatch-subscription-re-567e2.firebasestorage.app",
-  messagingSenderId: "132090557441",
-  appId: "1:132090557441:web:ac16dc7bc8c7bf4ddcbc00",
-  measurementId: "G-01Z35NDF7P"
-};
-// =======================================================================
-
-// --- Theme Management ---
-const applyTheme = (theme) => {
-    if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-        sunIcon.classList.remove('hidden'); // В темній темі показуємо сонце (для переходу на світлу)
-        moonIcon.classList.add('hidden');
-    } else {
-        document.documentElement.classList.remove('dark');
-        sunIcon.classList.add('hidden');
-        moonIcon.classList.remove('hidden'); // В світлій темі показуємо місяць (для переходу на темну)
-    }
-};
-
-const toggleTheme = () => {
-    const isDarkMode = document.documentElement.classList.contains('dark');
-    const newTheme = isDarkMode ? 'light' : 'dark';
-    localStorage.setItem('theme', newTheme);
-    applyTheme(newTheme);
-};
-
-const initializeTheme = () => {
-    const savedTheme = localStorage.getItem('theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
-    applyTheme(theme);
-};
-
-
-// --- Helper Functions ---
-const getDaysRemaining = (dateString) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const [year, month, day] = dateString.split('-').map(Number);
-    const paymentDate = new Date(year, month - 1, day);
-    paymentDate.setHours(0, 0, 0, 0);
-    const diffTime = paymentDate - today;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
-
-const getDaysRemainingText = (days) => {
-    if (days < 0) return 'Протерміновано';
-    if (days === 0) return 'Сьогодні';
-    if (days === 1) return '1 день';
-    if (days > 1 && days < 5) return `${days} дні`;
-    return `${days} днів`;
-};
-
-const getDaysRemainingInfo = (days) => {
-    let text = `Залишилось ${getDaysRemainingText(days)}`;
-    let colorClass = 'bg-green-500';
-    let textColorClass = 'text-green-400 dark:text-green-300';
-
-    if (days < 0) {
-        text = `Протерміновано на ${getDaysRemainingText(Math.abs(days))}`;
-        colorClass = 'bg-red-500';
-        textColorClass = 'text-red-400 dark:text-red-300';
-    } else if (days <= URGENT_DAYS_THRESHOLD) {
-        colorClass = 'bg-red-500';
-        textColorClass = 'text-red-400 dark:text-red-300';
-    } else if (days <= WARNING_DAYS_THRESHOLD) {
-        colorClass = 'bg-yellow-500';
-        textColorClass = 'text-yellow-500 dark:text-yellow-400';
-    }
-    return { text, colorClass, textColorClass };
-};
-
-const getCurrencySymbol = (currency) => {
-    const CURRENCY_SYMBOLS = { UAH: '₴', USD: '$', EUR: '€' };
-    return CURRENCY_SYMBOLS[currency] || '';
-};
-
-// --- UI Rendering Functions ---
-
-const createSubscriptionElement = (sub) => {
-    const daysRemaining = getDaysRemaining(sub.nextPaymentDate);
-    const { text, colorClass, textColorClass } = getDaysRemainingInfo(daysRemaining);
-    // Виправлено: додано T00:00:00 для коректної обробки дати незалежно від часової зони
-    const formattedDate = new Date(`${sub.nextPaymentDate}T00:00:00`).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
-    const currencySymbol = getCurrencySymbol(sub.currency);
-
-    const subElement = document.createElement('div');
-    subElement.className = `bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md border border-slate-200 dark:border-gray-700 flex items-center justify-between transition-all hover:shadow-lg hover:border-indigo-500/50 dark:hover:border-indigo-500/50 cursor-pointer`;
-    subElement.dataset.id = sub.id;
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Constants ---
+    const URGENT_DAYS_THRESHOLD = 3;
+    const WARNING_DAYS_THRESHOLD = 7;
     
-    subElement.innerHTML = `
-        <div class="flex items-center space-x-4 flex-1 min-w-0">
-             <div class="w-2 h-16 rounded-full ${colorClass}"></div>
-             <div class="min-w-0">
-                <div class="flex items-center gap-x-3 flex-wrap">
-                    <p class="font-bold text-lg text-slate-800 dark:text-white truncate">${sub.serviceName}</p>
-                    ${sub.category ? `<span class="category-badge">${sub.category}</span>` : ''}
-                </div>
-                <p class="text-sm text-slate-500 dark:text-gray-400">${formattedDate}</p>
-            </div>
-        </div>
-        <div class="flex items-center space-x-4 ml-4">
-             <div class="text-right">
-                <p class="font-semibold text-lg text-slate-900 dark:text-white">${sub.amount} ${currencySymbol}</p>
-                <p class="text-xs font-medium ${textColorClass}">${text}</p>
-            </div>
-            <button class="delete-btn text-slate-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-500 transition p-2 rounded-full hover:bg-red-500/10" data-id="${sub.id}">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
-            </button>
-        </div>
-    `;
-    return subElement;
-};
+    // --- DOM Elements ---
+    const userProfile = document.getElementById('userProfile');
+    const userAvatar = document.getElementById('userAvatar');
+    const userName = document.getElementById('userName');
+    const signOutBtn = document.getElementById('signOutBtn');
+    const signInBtn = document.getElementById('signInBtn');
+    const loginContainer = document.getElementById('loginContainer');
+    const appContent = document.getElementById('appContent');
+    const openModalBtn = document.getElementById('openModalBtn');
+    const subscriptionsList = document.getElementById('subscriptionsList');
+    const emptyState = document.getElementById('emptyState');
+    const totalSpendingEl = document.getElementById('totalSpending');
+    const notification = document.getElementById('notification');
+    const notificationContent = document.getElementById('notification-content');
+    const notificationIcon = document.getElementById('notification-icon');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const sunIcon = document.getElementById('sunIcon');
+    const moonIcon = document.getElementById('moonIcon');
+    const globalLoader = document.getElementById('globalLoader');
+    const offlineIndicator = document.getElementById('offlineIndicator');
 
-const renderTotalSpending = () => {
-    const totals = subscriptions.reduce((acc, sub) => {
-        if (!acc[sub.currency]) {
-            acc[sub.currency] = 0;
-        }
-        const isYearly = (sub.billingCycle || 'monthly') === 'yearly';
-        const amount = isYearly ? parseFloat(sub.amount) / 12 : parseFloat(sub.amount);
-        acc[sub.currency] += amount;
-        return acc;
-    }, {});
+    // Modal Elements
+    const subscriptionModal = document.getElementById('subscriptionModal');
+    const confirmModal = document.getElementById('confirmModal');
+    const subscriptionForm = document.getElementById('subscriptionForm');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
-    const parts = Object.entries(totals).map(([currency, amount]) => 
-        `<strong class="text-slate-800 dark:text-white">${amount.toFixed(2)} ${getCurrencySymbol(currency)}</strong>`
-    );
+    // --- State ---
+    let app, db, auth, userId, subscriptionsCollection;
+    let subscriptions = [];
+    let unsubscribe;
+    let isOffline = !navigator.onLine;
+    let lastCheckDate = null;
 
-    totalSpendingEl.innerHTML = parts.length > 0 ? `Приблизні витрати на місяць: ${parts.join(' + ')}` : '';
-};
+    // --- Helper Functions ---
+    const debounce = (func, wait) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    };
 
-const checkNotifications = () => {
-    const upcomingSubs = subscriptions.filter(sub => {
-        const days = getDaysRemaining(sub.nextPaymentDate);
-        return days >= 0 && days <= URGENT_DAYS_THRESHOLD;
-    });
-
-    if (upcomingSubs.length > 0) {
-        notificationContent.innerHTML = upcomingSubs.map(sub => 
-            `<p class="mb-1"><strong>${sub.serviceName}</strong> - оплата через ${getDaysRemainingText(getDaysRemaining(sub.nextPaymentDate))}.</p>`
-        ).join('');
-        notification.classList.remove('hidden', 'bg-green-500', 'bg-red-500');
-        notification.classList.add('bg-yellow-500');
-        setTimeout(() => notification.classList.add('hidden'), 8000);
-    } else {
-        notification.classList.add('hidden');
-    }
-};
-
-const showNotification = (message, isError = false) => {
-    notificationContent.innerHTML = `<p>${message}</p>`;
-    notification.classList.remove('hidden', 'bg-yellow-500', 'bg-red-500', 'bg-green-500');
-    notification.classList.add(isError ? 'bg-red-600' : 'bg-green-600');
-    setTimeout(() => notification.classList.add('hidden'), 5000);
-};
-
-const updateUIOnDataChange = () => {
-    const sortedSubs = [...subscriptions].sort((a, b) => getDaysRemaining(a.nextPaymentDate) - getDaysRemaining(b.nextPaymentDate));
-    subscriptionsList.innerHTML = ''; 
-    sortedSubs.forEach(sub => {
-        subscriptionsList.appendChild(createSubscriptionElement(sub));
-    });
+    const sanitizeText = (text) => {
+        const div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    };
     
-    const hasSubscriptions = subscriptions.length > 0;
-    emptyState.classList.toggle('hidden', hasSubscriptions);
-    totalSpendingEl.classList.toggle('hidden', !hasSubscriptions);
+    const isValidDateString = (dateString) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
+        const [year, month, day] = dateString.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        return date.getFullYear() === year && 
+               date.getMonth() === month - 1 && 
+               date.getDate() === day;
+    };
 
-    if (hasSubscriptions) {
-        renderTotalSpending();
-        checkNotifications();
-    }
-};
-
-// --- Modal Management & Forms ---
-const setupModalForms = () => {
-    // Додано класи Tailwind для коректного стилю полів вводу
-    const formInputClasses = "w-full bg-slate-100 dark:bg-gray-700 border-slate-300 dark:border-gray-600 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition";
-    
-    const formContent = `
-        <div>
-            <label for="serviceName" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Назва сервісу</label>
-            <input type="text" id="serviceName" class="${formInputClasses}" placeholder="Напр. Netflix, Spotify" required>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="sm:col-span-2">
-                <label for="amount" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Сума</label>
-                <input type="number" id="amount" step="0.01" min="0" class="${formInputClasses}" placeholder="10.99" required>
-            </div>
-            <div>
-                <label for="currency" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Валюта</label>
-                <select id="currency" class="${formInputClasses}">
-                    <option>UAH</option>
-                    <option>USD</option>
-                    <option>EUR</option>
-                </select>
-            </div>
-        </div>
-         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-                <label for="billingCycle" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Період оплати</label>
-                <select id="billingCycle" class="${formInputClasses}">
-                    <option value="monthly">Щомісяця</option>
-                    <option value="yearly">Щороку</option>
-                </select>
-            </div>
-            <div>
-                <label for="category" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Категорія</label>
-                <input type="text" id="category" class="${formInputClasses}" placeholder="Напр. Розваги">
-            </div>
-        </div>
-        <div>
-            <label for="nextPaymentDate" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Дата наступного платежу</label>
-            <input type="date" id="nextPaymentDate" class="${formInputClasses}" required>
-        </div>
-    `;
-    subscriptionForm.querySelector('.space-y-5').innerHTML = formContent;
-};
-
-// Нова функція для присвоєння змінних ПІСЛЯ створення полів форми
-const assignFormFields = () => {
-    subscriptionIdField = document.getElementById('subscriptionId');
-    serviceNameField = document.getElementById('serviceName');
-    amountField = document.getElementById('amount');
-    currencyField = document.getElementById('currency');
-    billingCycleField = document.getElementById('billingCycle');
-    categoryField = document.getElementById('category');
-    nextPaymentDateField = document.getElementById('nextPaymentDate');
-    modalTitle = document.getElementById('modalTitle');
-};
-
-const showModal = (isEdit = false, sub = null) => {
-    subscriptionForm.reset();
-    if (isEdit && sub) {
-        modalTitle.textContent = "Редагувати Підписку";
-        subscriptionIdField.value = sub.id;
-        serviceNameField.value = sub.serviceName;
-        amountField.value = sub.amount;
-        currencyField.value = sub.currency;
-        billingCycleField.value = sub.billingCycle || 'monthly';
-        categoryField.value = sub.category || '';
-        nextPaymentDateField.value = sub.nextPaymentDate;
-    } else {
-        modalTitle.textContent = "Нова Підписка";
-        subscriptionIdField.value = '';
+    const getDaysRemaining = (dateString) => {
         const today = new Date();
-        nextPaymentDateField.setAttribute('min', today.toISOString().split('T')[0]);
-        today.setDate(today.getDate() + 1);
-        nextPaymentDateField.value = today.toISOString().split('T')[0];
-    }
-    subscriptionModal.classList.remove('hidden');
-    setTimeout(() => {
-        modalContent.classList.add('scale-100');
-        serviceNameField.focus();
-    }, 10);
-};
-
-const hideModal = () => {
-    modalContent.classList.remove('scale-100');
-    subscriptionModal.classList.add('hidden');
-};
-
-const showConfirmModal = (id) => {
-    subscriptionToDeleteId = id;
-    confirmModal.classList.remove('hidden');
-};
-
-const hideConfirmModal = () => {
-    subscriptionToDeleteId = null;
-    confirmModal.classList.add('hidden');
-};
-
-// --- Firebase & Data Logic ---
-const updateOverdueSubscriptions = async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const updates = [];
-
-    for (const sub of subscriptions) {
-        const [year, month, day] = sub.nextPaymentDate.split('-').map(Number);
-        const paymentDate = new Date(year, month - 1, day);
-        
-        if (paymentDate < today) {
-            let nextDate = new Date(paymentDate);
-            while (nextDate < today) {
-                if ((sub.billingCycle || 'monthly') === 'yearly') {
-                    nextDate.setFullYear(nextDate.getFullYear() + 1);
-                } else {
-                    nextDate.setMonth(nextDate.getMonth() + 1);
-                }
-            }
-            const updatedDate = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
-            const docRef = doc(db, `users/${userId}/subscriptions`, sub.id);
-            updates.push(updateDoc(docRef, { nextPaymentDate: updatedDate }));
-        }
-    }
+        const todayString = today.toISOString().split('T')[0];
+        const todayTime = new Date(todayString + 'T00:00:00Z').getTime();
+        const paymentTime = new Date(dateString + 'T00:00:00Z').getTime();
+        return Math.ceil((paymentTime - todayTime) / (1000 * 60 * 60 * 24));
+    };
     
-    if (updates.length > 0) {
-        await Promise.all(updates);
-    }
-};
-
-const listenForSubscriptions = () => {
-    if (!subscriptionsCollection) return;
-    if (unsubscribe) unsubscribe();
-
-    unsubscribe = onSnapshot(query(subscriptionsCollection), async (snapshot) => {
-        let needsOverdueUpdate = false;
-        snapshot.docChanges().forEach((change) => {
-            const sourceData = { id: change.doc.id, ...change.doc.data() };
-            if (change.type === "added") {
-                subscriptions.push(sourceData);
-                if (getDaysRemaining(sourceData.nextPaymentDate) < 0) needsOverdueUpdate = true;
-            }
-            if (change.type === "modified") {
-                const index = subscriptions.findIndex(s => s.id === sourceData.id);
-                if (index > -1) subscriptions[index] = sourceData;
-            }
-            if (change.type === "removed") {
-                subscriptions = subscriptions.filter(s => s.id !== sourceData.id);
-            }
-        });
-        
-        if(needsOverdueUpdate) await updateOverdueSubscriptions();
-        
-        updateUIOnDataChange();
-        
-    }, (error) => {
-        console.error("Error listening to subscriptions:", error);
-        showNotification("Не вдалося завантажити підписки.", true);
-    });
-};
-
-const initializeFirebase = () => {
-    try {
-        if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
-            console.error("Firebase config is not set correctly. Please paste your config object.");
-            loginContainer.innerHTML = `<p class="text-red-400">Помилка конфігурації Firebase.</p>`;
-            return;
+    const getDaysRemainingText = (days) => {
+        if (days < 0) return 'Протерміновано';
+        if (days === 0) return 'Сьогодні';
+        if (days === 1) return 'Завтра';
+        try {
+            const rtf = new Intl.RelativeTimeFormat('uk', { numeric: 'auto' });
+            return `через ${rtf.format(days, 'day').replace('через ','')}`;
+        } catch (e) {
+            return `через ${days} днів`;
         }
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-        handleAuthState();
-    } catch (e) {
-        console.error("Firebase initialization failed:", e);
-    }
-};
+    };
 
-const handleAuthState = () => {
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            userId = user.uid;
-            updateUIForUser(user);
-            subscriptionsCollection = collection(db, `users/${userId}/subscriptions`);
-            listenForSubscriptions();
+    const getDaysRemainingInfo = (days) => {
+        let colorClass, textColorClass;
+        if (days < 0) {
+            colorClass = 'bg-red-400';
+            textColorClass = 'text-red-500 dark:text-red-400';
+        } else if (days <= URGENT_DAYS_THRESHOLD) {
+            colorClass = 'bg-orange-400';
+            textColorClass = 'text-orange-500 dark:text-orange-400';
+        } else if (days <= WARNING_DAYS_THRESHOLD) {
+            colorClass = 'bg-yellow-400';
+            textColorClass = 'text-yellow-500 dark:text-yellow-400';
         } else {
-            updateUIForGuest();
+            colorClass = 'bg-green-400';
+            textColorClass = 'text-green-600 dark:text-green-400';
         }
-    });
-};
-
-const updateUIForUser = (user) => {
-    userProfile.classList.remove('hidden');
-    appContent.classList.remove('hidden');
-    loginContainer.classList.add('hidden');
-    userAvatar.src = user.photoURL || `https://placehold.co/40x40/cbd5e1/475569?text=${user.displayName?.[0] || 'U'}`;
-    userName.textContent = user.displayName || 'Користувач';
-};
-
-const updateUIForGuest = () => {
-    if (unsubscribe) unsubscribe();
-    subscriptions = [];
-    subscriptionsList.innerHTML = '';
-    updateUIOnDataChange();
-    userProfile.classList.add('hidden');
-    appContent.classList.add('hidden');
-    loginContainer.classList.remove('hidden');
-};
-
-const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-        await signInWithPopup(auth, provider);
-    } catch (error) {
-        console.error("Google Sign-In failed:", error);
-        showNotification("Помилка входу через Google.", true);
-    }
-};
-
-const signOutUser = async () => {
-    try {
-        await signOut(auth);
-    } catch (error) {
-        console.error("Sign-Out failed:", error);
-    }
-};
-
-// --- Event Listeners ---
-const setupEventListeners = () => {
-    themeToggleBtn.addEventListener('click', toggleTheme);
-    signInBtn.addEventListener('click', signInWithGoogle);
-    signOutBtn.addEventListener('click', signOutUser);
-    openModalBtn.addEventListener('click', () => showModal());
-    closeModalBtn.addEventListener('click', hideModal);
-    confirmCancelBtn.addEventListener('click', hideConfirmModal);
+        return { text: getDaysRemainingText(days), colorClass, textColorClass };
+    };
     
-    subscriptionModal.addEventListener('click', (e) => {
-        if (e.target === subscriptionModal) hideModal();
-    });
+    const getCurrencySymbol = (currency) => ({ UAH: '₴', USD: '$', EUR: '€' }[currency] || '');
 
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            if (!subscriptionModal.classList.contains('hidden')) hideModal();
-            if (!confirmModal.classList.contains('hidden')) hideConfirmModal();
-        }
-    });
+    const showLoader = () => globalLoader.classList.remove('hidden');
+    const hideLoader = () => globalLoader.classList.add('hidden');
 
-    subscriptionForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const submitButton = e.target.querySelector('button[type="submit"]');
-        const originalButtonText = submitButton.textContent;
-        submitButton.disabled = true;
-        submitButton.innerHTML = 'Збереження...';
-
-        // Виправлено: тепер використовуються коректно визначені змінні
-        const id = subscriptionIdField.value;
-        const subscriptionData = {
-            serviceName: serviceNameField.value.trim(),
-            amount: parseFloat(amountField.value),
-            currency: currencyField.value,
-            billingCycle: billingCycleField.value,
-            category: categoryField.value.trim(),
-            nextPaymentDate: nextPaymentDateField.value,
+    // --- Firebase & Data Management ---
+    const initializeFirebase = () => {
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzw99mWK9lHlMpFpcJ31wrAsrtGZfxj_k",
+            authDomain: "subwatch-subscription-re-567e2.firebaseapp.com",
+            projectId: "subwatch-subscription-re-567e2",
+            storageBucket: "subwatch-subscription-re-567e2.firebasestorage.app",
+            messagingSenderId: "132090557441",
+            appId: "1:132090557441:web:ac16dc7bc8c7bf4ddcbc00",
+            measurementId: "G-01Z35NDF7P"
         };
         
+        if (!firebaseConfig || firebaseConfig.apiKey.includes("YOUR_API_KEY")) {
+            showNotification("Firebase не налаштовано. Будь ласка, налаштуйте правила безпеки та конфігурацію.", true);
+            hideLoader();
+            return;
+        }
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    updateUIForUser(user);
+                    subscriptionsCollection = collection(db, `users/${userId}/subscriptions`);
+                    listenForSubscriptions();
+                } else {
+                    updateUIForGuest();
+                }
+            });
+        } catch (e) {
+            console.error("Firebase initialization failed:", e);
+            showNotification("Помилка ініціалізації Firebase.", true);
+            hideLoader();
+        }
+    };
+
+    const signInWithGoogle = async () => await signInWithPopup(auth, new GoogleAuthProvider()).catch(err => console.error("Google Sign-In failed:", err));
+    const signOutUser = async () => await signOut(auth).catch(err => console.error("Sign-Out failed:", err));
+
+    const updateOverdueSubscriptions = async () => {
+        const todayString = new Date().toISOString().split('T')[0];
+        if (lastCheckDate === todayString) return;
+        lastCheckDate = todayString;
+
+        const overdueSubs = subscriptions.filter(sub => isValidDateString(sub.nextPaymentDate) && sub.nextPaymentDate < todayString);
+        if (overdueSubs.length === 0) return;
+
+        try {
+            const batch = writeBatch(db);
+            overdueSubs.forEach(sub => {
+                let nextDate = new Date(sub.nextPaymentDate + 'T00:00:00Z');
+                const today = new Date(todayString + 'T00:00:00Z');
+                
+                while (nextDate < today) {
+                    if (sub.billingCycle === 'yearly') {
+                        nextDate.setUTCFullYear(nextDate.getUTCFullYear() + 1);
+                    } else {
+                        nextDate.setUTCMonth(nextDate.getUTCMonth() + 1);
+                    }
+                }
+                const docRef = doc(db, `users/${userId}/subscriptions`, sub.id);
+                batch.update(docRef, { 
+                    nextPaymentDate: nextDate.toISOString().split('T')[0]
+                });
+            });
+            await batch.commit();
+            showNotification("Протерміновані підписки було оновлено.");
+        } catch (error) {
+            console.error("Error updating overdue subscriptions:", error);
+            showNotification("Не вдалося оновити протерміновані підписки.", true);
+        }
+    };
+
+    const listenForSubscriptions = () => {
+        if (!subscriptionsCollection) return;
+        if (unsubscribe) unsubscribe();
+
+        unsubscribe = onSnapshot(query(subscriptionsCollection), 
+            async (snapshot) => {
+                if (isOffline) {
+                    isOffline = false;
+                    offlineIndicator.classList.add('hidden');
+                    showNotification("З'єднання відновлено.");
+                }
+                
+                snapshot.docChanges().forEach((change) => {
+                    const subData = { id: change.doc.id, ...change.doc.data() };
+                    const index = subscriptions.findIndex(s => s.id === subData.id);
+
+                    if (change.type === "added") {
+                        if (index === -1) subscriptions.push(subData);
+                    }
+                    if (change.type === "modified") {
+                        if (index > -1) subscriptions[index] = subData;
+                    }
+                    if (change.type === "removed") {
+                        if (index > -1) subscriptions.splice(index, 1);
+                    }
+                });
+                
+                await updateOverdueSubscriptions();
+                debouncedRenderUI();
+                hideLoader();
+            }, 
+            (error) => {
+                console.error("Error listening to subscriptions:", error);
+                isOffline = true;
+                offlineIndicator.classList.remove('hidden');
+                hideLoader();
+            }
+        );
+    };
+
+    // --- UI Functions ---
+    const showNotification = (message, isError = false) => {
+        notificationContent.textContent = message;
+        if (isError) {
+            notification.className = "fixed bottom-5 right-5 p-4 rounded-lg shadow-lg z-50 transform transition-all duration-300 max-w-sm bg-red-500";
+            notificationIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+        } else {
+            notification.className = "fixed bottom-5 right-5 p-4 rounded-lg shadow-lg z-50 transform transition-all duration-300 max-w-sm bg-green-500";
+            notificationIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 0118 0z" /></svg>`;
+        }
+        notification.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => notification.classList.add('translate-y-20', 'opacity-0'), 4000);
+    };
+
+    const createSubscriptionElement = (sub) => {
+        const el = document.createElement('div');
+        el.className = 'bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer';
+        el.dataset.id = sub.id;
+
+        const daysRemaining = isValidDateString(sub.nextPaymentDate) ? getDaysRemaining(sub.nextPaymentDate) : NaN;
+        const { text, colorClass, textColorClass } = getDaysRemainingInfo(daysRemaining);
+        
+        const dateText = isValidDateString(sub.nextPaymentDate) 
+            ? new Date(sub.nextPaymentDate + 'T00:00:00Z').toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
+            : 'Некоректна дата';
+
+        el.innerHTML = `
+            <div class="flex items-center space-x-4 overflow-hidden">
+                <div class="w-1.5 h-16 rounded-full flex-shrink-0 ${colorClass}"></div>
+                <div class="overflow-hidden">
+                    <p class="font-bold text-lg text-gray-900 dark:text-white truncate">${sanitizeText(sub.serviceName)}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${dateText}</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4 flex-shrink-0">
+                <div class="text-right">
+                    <p class="font-semibold text-lg text-gray-900 dark:text-white">${parseFloat(sub.amount).toFixed(2)} ${getCurrencySymbol(sub.currency)}</p>
+                    <p class="text-xs font-medium ${textColorClass}">${text}</p>
+                </div>
+                <div class="flex flex-col items-center space-y-1">
+                     <span class="text-xs px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-full">${sanitizeText(sub.category || 'Загальне')}</span>
+                     <button aria-label="Видалити підписку" class="delete-btn text-gray-400 hover:text-red-500 transition p-2 pointer-events-auto" data-id="${sub.id}">
+                        <svg class="h-5 w-5 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                    </button>
+                </div>
+            </div>
+        `;
+        return el;
+    };
+    
+    const renderUI = () => {
+        subscriptions.sort((a, b) => getDaysRemaining(a.nextPaymentDate) - getDaysRemaining(b.nextPaymentDate));
+        
+        subscriptionsList.innerHTML = '';
+        if (subscriptions.length === 0) {
+            emptyState.classList.remove('hidden');
+            totalSpendingEl.classList.add('hidden');
+        } else {
+            emptyState.classList.add('hidden');
+            totalSpendingEl.classList.remove('hidden');
+            subscriptions.forEach(sub => subscriptionsList.appendChild(createSubscriptionElement(sub)));
+        }
+        renderTotalSpending();
+    };
+    const debouncedRenderUI = debounce(renderUI, 100);
+
+    const updateUIForUser = (user) => {
+        userProfile.classList.remove('hidden');
+        appContent.classList.remove('hidden');
+        loginContainer.classList.add('hidden');
+        userAvatar.src = user.photoURL || `https://placehold.co/40x40/64748b/ffffff?text=${sanitizeText(user.displayName?.[0] || 'U')}`;
+        userName.textContent = user.displayName || 'Користувач';
+    };
+
+    const updateUIForGuest = () => {
+        if (unsubscribe) unsubscribe();
+        subscriptions = [];
+        renderUI();
+        userProfile.classList.add('hidden');
+        appContent.classList.add('hidden');
+        loginContainer.classList.remove('hidden');
+        hideLoader();
+    };
+
+    const renderTotalSpending = () => {
+        const totals = subscriptions.reduce((acc, sub) => {
+            const amount = (sub.billingCycle || 'monthly') === 'yearly' ? parseFloat(sub.amount) / 12 : parseFloat(sub.amount);
+            if (!acc[sub.currency]) acc[sub.currency] = 0;
+            acc[sub.currency] += amount;
+            return acc;
+        }, {});
+        
+        const parts = Object.entries(totals).sort().map(([currency, amount]) => 
+            `<strong class="text-gray-900 dark:text-white">${amount.toFixed(2)} ${getCurrencySymbol(currency)}</strong>`);
+        
+        totalSpendingEl.innerHTML = parts.length > 0 ? `Приблизні витрати на місяць: ${parts.join(' + ')}` : '';
+    };
+    
+    // --- Modal Management ---
+    const showModal = (modalId) => {
+        const modal = document.getElementById(modalId);
+        const modalContent = modal.querySelector('.transform');
+        modal.classList.remove('hidden');
+        setTimeout(() => modalContent.classList.add('scale-100', 'opacity-100'), 10);
+    };
+    
+    const hideModal = (modalId) => {
+        const modal = document.getElementById(modalId);
+        const modalContent = modal.querySelector('.transform');
+        modalContent.classList.remove('scale-100', 'opacity-100');
+        setTimeout(() => modal.classList.add('hidden'), 200);
+    };
+
+    const handleFormSubmit = async (e) => {
+        e.preventDefault();
+        const submitButton = subscriptionForm.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.textContent;
+        submitButton.disabled = true;
+        submitButton.textContent = 'Збереження...';
+
+        const dateValue = subscriptionForm.nextPaymentDate.value;
+        if (!isValidDateString(dateValue)) {
+            showNotification("Вказано некоректну дату. Будь ласка, перевірте формат РРРР-ММ-ДД.", true);
+            submitButton.disabled = false;
+            submitButton.textContent = originalButtonText;
+            return;
+        }
+        
+        if (dateValue < new Date().toISOString().split('T')[0]) {
+             showNotification("Дата не може бути в минулому.", true);
+            submitButton.disabled = false;
+            submitButton.textContent = originalButtonText;
+            return;
+        }
+
+        const id = subscriptionForm.subscriptionId.value;
+        const subscriptionData = {
+            serviceName: subscriptionForm.serviceName.value.trim(),
+            category: subscriptionForm.category.value.trim() || 'Загальне',
+            amount: parseFloat(subscriptionForm.amount.value),
+            currency: subscriptionForm.currency.value,
+            billingCycle: subscriptionForm.billingCycle.value,
+            nextPaymentDate: dateValue,
+        };
+
         try {
             if (id) {
                 await updateDoc(doc(db, `users/${userId}/subscriptions`, id), subscriptionData);
-                showNotification("Підписку успішно оновлено!");
+                showNotification("Підписку оновлено!");
             } else {
                 await addDoc(subscriptionsCollection, subscriptionData);
-                showNotification("Підписку успішно додано!");
+                showNotification("Підписку додано!");
             }
-            hideModal();
+            hideModal('subscriptionModal');
+            try { sessionStorage.removeItem('subscription-draft'); } catch(e) {}
         } catch (error) {
             console.error("Error saving subscription:", error);
-            showNotification("Помилка: не вдалося зберегти підписку.", true);
+            showNotification("Не вдалося зберегти підписку.", true);
         } finally {
             submitButton.disabled = false;
             submitButton.textContent = originalButtonText;
         }
-    });
+    };
+
+    const openEditModal = (sub) => {
+        showModal('subscriptionModal');
+        document.getElementById('modalTitle').textContent = "Редагувати Підписку";
+        subscriptionForm.reset();
+        
+        subscriptionForm.subscriptionId.value = sub.id;
+        subscriptionForm.serviceName.value = sub.serviceName;
+        subscriptionForm.category.value = sub.category || '';
+        subscriptionForm.amount.value = sub.amount;
+        subscriptionForm.currency.value = sub.currency;
+        subscriptionForm.billingCycle.value = sub.billingCycle || 'monthly';
+        subscriptionForm.nextPaymentDate.value = sub.nextPaymentDate;
+    };
     
-    subscriptionsList.addEventListener('click', (e) => {
-        const target = e.target;
-        const deleteButton = target.closest('.delete-btn');
-        if (deleteButton) {
-            showConfirmModal(deleteButton.dataset.id);
-            return;
+    const openNewModal = () => {
+        showModal('subscriptionModal');
+        document.getElementById('modalTitle').textContent = "Нова Підписка";
+        subscriptionForm.reset();
+        restoreDraft();
+        const todayString = new Date().toISOString().split('T')[0];
+        subscriptionForm.nextPaymentDate.setAttribute('min', todayString);
+        if(!subscriptionForm.nextPaymentDate.value) {
+            subscriptionForm.nextPaymentDate.value = todayString;
         }
-        
-        const card = target.closest('[data-id]');
-        if (card) {
-            const subToEdit = subscriptions.find(s => s.id === card.dataset.id);
-            if (subToEdit) showModal(true, subToEdit);
-        }
-    });
+        setTimeout(() => subscriptionForm.serviceName.focus(), 100);
+    };
 
-    confirmDeleteBtn.addEventListener('click', async () => {
-        if (!subscriptionToDeleteId) return;
+    const openConfirmModal = (subId) => {
+        showModal('confirmModal');
+        confirmDeleteBtn.onclick = async () => {
+            const originalText = confirmDeleteBtn.textContent;
+            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.textContent = 'Видалення...';
+            try {
+                await deleteDoc(doc(db, `users/${userId}/subscriptions`, subId));
+                showNotification("Підписку видалено.");
+            } catch (error) {
+                showNotification("Не вдалося видалити підписку.", true);
+            } finally {
+                confirmDeleteBtn.disabled = false;
+                confirmDeleteBtn.textContent = originalText;
+                hideModal('confirmModal');
+            }
+        };
+    }
+    
+    const saveDraft = () => {
+        const draft = {
+            serviceName: subscriptionForm.serviceName.value,
+            category: subscriptionForm.category.value,
+            amount: subscriptionForm.amount.value,
+            currency: subscriptionForm.currency.value,
+            billingCycle: subscriptionForm.billingCycle.value,
+            nextPaymentDate: subscriptionForm.nextPaymentDate.value,
+        };
+        try { sessionStorage.setItem('subscription-draft', JSON.stringify(draft)); } catch (e) {}
+    };
+    const debouncedSaveDraft = debounce(saveDraft, 500);
 
-        const originalButtonText = confirmDeleteBtn.textContent;
-        confirmDeleteBtn.disabled = true;
-        confirmDeleteBtn.innerHTML = 'Видалення...';
-        
+    const restoreDraft = () => {
         try {
-            await deleteDoc(doc(db, `users/${userId}/subscriptions`, subscriptionToDeleteId));
-            showNotification("Підписку видалено.");
-        } catch (error) {
-            console.error("Error deleting subscription:", error);
-            showNotification("Помилка: не вдалося видалити підписку.", true);
-        } finally {
-            confirmDeleteBtn.disabled = false;
-            confirmDeleteBtn.textContent = originalButtonText;
-            // Помилку виправлено: hideConfirmModal() не було тут
-            hideConfirmModal();
+            const draft = JSON.parse(sessionStorage.getItem('subscription-draft'));
+            if (draft) {
+                subscriptionForm.serviceName.value = draft.serviceName || '';
+                subscriptionForm.category.value = draft.category || '';
+                subscriptionForm.amount.value = draft.amount || '';
+                subscriptionForm.currency.value = draft.currency || 'UAH';
+                subscriptionForm.billingCycle.value = draft.billingCycle || 'monthly';
+                subscriptionForm.nextPaymentDate.value = draft.nextPaymentDate || '';
+            }
+        } catch (e) {}
+    };
+
+
+    // --- Theme Management ---
+    const applyTheme = (theme) => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        sunIcon.classList.toggle('hidden', theme !== 'dark');
+        moonIcon.classList.toggle('hidden', theme === 'dark');
+    };
+
+    const toggleTheme = () => {
+        const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+        applyTheme(newTheme);
+        try { localStorage.setItem('theme', newTheme); } catch (e) { console.warn("Could not save theme to localStorage:", e); }
+    };
+
+    const initTheme = () => {
+        try {
+            const savedTheme = localStorage.getItem('theme');
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            applyTheme(savedTheme || (systemPrefersDark ? 'dark' : 'light'));
+        } catch (e) {
+            console.warn("Could not read theme from localStorage:", e);
+            applyTheme('light');
         }
-    });
-};
+    };
 
-// --- App Initialization ---
-document.addEventListener('DOMContentLoaded', () => {
-    initializeTheme();
-    setupModalForms();
-    assignFormFields(); // Тепер ми присвоюємо змінні після створення полів
-    setupEventListeners();
+    // --- Event Listeners ---
+    const initEventListeners = () => {
+        openModalBtn.addEventListener('click', openNewModal);
+        signInBtn.addEventListener('click', signInWithGoogle);
+        signOutBtn.addEventListener('click', signOutUser);
+        themeToggleBtn.addEventListener('click', toggleTheme);
+
+        subscriptionModal.addEventListener('click', (e) => e.target === subscriptionModal && hideModal('subscriptionModal'));
+        document.getElementById('closeModalBtn').addEventListener('click', () => hideModal('subscriptionModal'));
+        confirmModal.addEventListener('click', (e) => e.target === confirmModal && hideModal('confirmModal'));
+        document.getElementById('confirmCancelBtn').addEventListener('click', () => hideModal('confirmModal'));
+        
+        subscriptionForm.addEventListener('submit', handleFormSubmit);
+        subscriptionForm.addEventListener('input', debouncedSaveDraft);
+
+        subscriptionsList.addEventListener('click', (e) => {
+            const card = e.target.closest('[data-id]');
+            const deleteButton = e.target.closest('.delete-btn');
+            
+            if (deleteButton) {
+                e.stopPropagation();
+                openConfirmModal(deleteButton.dataset.id);
+            } else if (card) {
+                const subToEdit = subscriptions.find(s => s.id === card.dataset.id);
+                if (subToEdit) openEditModal(subToEdit);
+            }
+        });
+        
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (!subscriptionModal.classList.contains('hidden')) hideModal('subscriptionModal');
+                if (!confirmModal.classList.contains('hidden')) hideModal('confirmModal');
+            }
+        });
+
+        window.addEventListener('online', () => {
+            isOffline = false;
+            offlineIndicator.classList.add('hidden');
+            showNotification("З'єднання відновлено.");
+        });
+
+        window.addEventListener('offline', () => {
+            isOffline = true;
+            offlineIndicator.classList.remove('hidden');
+        });
+    };
+
+    // --- Initial Load ---
+    initTheme();
+    showLoader();
     initializeFirebase();
+    initEventListeners();
 });
-
-
 
