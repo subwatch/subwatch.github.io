@@ -34,14 +34,9 @@ const sunIcon = document.getElementById('sunIcon');
 const moonIcon = document.getElementById('moonIcon');
 
 // --- Form Fields ---
-const subscriptionIdField = document.getElementById('subscriptionId');
-const serviceNameField = document.getElementById('serviceName');
-const amountField = document.getElementById('amount');
-const currencyField = document.getElementById('currency');
-const billingCycleField = document.getElementById('billingCycle');
-const categoryField = document.getElementById('category');
-const nextPaymentDateField = document.getElementById('nextPaymentDate');
-const modalTitle = document.getElementById('modalTitle');
+// Змінено з const на let, щоб їх можна було визначити пізніше
+let subscriptionIdField, serviceNameField, amountField, currencyField, billingCycleField, categoryField, nextPaymentDateField, modalTitle;
+
 
 // --- App State ---
 let app, db, auth;
@@ -139,6 +134,7 @@ const getCurrencySymbol = (currency) => {
 const createSubscriptionElement = (sub) => {
     const daysRemaining = getDaysRemaining(sub.nextPaymentDate);
     const { text, colorClass, textColorClass } = getDaysRemainingInfo(daysRemaining);
+    // Виправлено: додано T00:00:00 для коректної обробки дати незалежно від часової зони
     const formattedDate = new Date(`${sub.nextPaymentDate}T00:00:00`).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
     const currencySymbol = getCurrencySymbol(sub.currency);
 
@@ -232,19 +228,22 @@ const updateUIOnDataChange = () => {
 
 // --- Modal Management & Forms ---
 const setupModalForms = () => {
+    // Додано класи Tailwind для коректного стилю полів вводу
+    const formInputClasses = "w-full bg-slate-100 dark:bg-gray-700 border-slate-300 dark:border-gray-600 text-slate-900 dark:text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition";
+    
     const formContent = `
         <div>
             <label for="serviceName" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Назва сервісу</label>
-            <input type="text" id="serviceName" class="form-input" placeholder="Напр. Netflix, Spotify" required>
+            <input type="text" id="serviceName" class="${formInputClasses}" placeholder="Напр. Netflix, Spotify" required>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="sm:col-span-2">
                 <label for="amount" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Сума</label>
-                <input type="number" id="amount" step="0.01" min="0" class="form-input" placeholder="10.99" required>
+                <input type="number" id="amount" step="0.01" min="0" class="${formInputClasses}" placeholder="10.99" required>
             </div>
             <div>
                 <label for="currency" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Валюта</label>
-                <select id="currency" class="form-input">
+                <select id="currency" class="${formInputClasses}">
                     <option>UAH</option>
                     <option>USD</option>
                     <option>EUR</option>
@@ -254,22 +253,34 @@ const setupModalForms = () => {
          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <label for="billingCycle" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Період оплати</label>
-                <select id="billingCycle" class="form-input">
+                <select id="billingCycle" class="${formInputClasses}">
                     <option value="monthly">Щомісяця</option>
                     <option value="yearly">Щороку</option>
                 </select>
             </div>
             <div>
                 <label for="category" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Категорія</label>
-                <input type="text" id="category" class="form-input" placeholder="Напр. Розваги">
+                <input type="text" id="category" class="${formInputClasses}" placeholder="Напр. Розваги">
             </div>
         </div>
         <div>
             <label for="nextPaymentDate" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Дата наступного платежу</label>
-            <input type="date" id="nextPaymentDate" class="form-input" required>
+            <input type="date" id="nextPaymentDate" class="${formInputClasses}" required>
         </div>
     `;
     subscriptionForm.querySelector('.space-y-5').innerHTML = formContent;
+};
+
+// Нова функція для присвоєння змінних ПІСЛЯ створення полів форми
+const assignFormFields = () => {
+    subscriptionIdField = document.getElementById('subscriptionId');
+    serviceNameField = document.getElementById('serviceName');
+    amountField = document.getElementById('amount');
+    currencyField = document.getElementById('currency');
+    billingCycleField = document.getElementById('billingCycle');
+    categoryField = document.getElementById('category');
+    nextPaymentDateField = document.getElementById('nextPaymentDate');
+    modalTitle = document.getElementById('modalTitle');
 };
 
 const showModal = (isEdit = false, sub = null) => {
@@ -466,14 +477,15 @@ const setupEventListeners = () => {
         submitButton.disabled = true;
         submitButton.innerHTML = 'Збереження...';
 
-        const id = document.getElementById('subscriptionId').value;
+        // Виправлено: тепер використовуються коректно визначені змінні
+        const id = subscriptionIdField.value;
         const subscriptionData = {
-            serviceName: document.getElementById('serviceName').value.trim(),
-            amount: parseFloat(document.getElementById('amount').value),
-            currency: document.getElementById('currency').value,
-            billingCycle: document.getElementById('billingCycle').value,
-            category: document.getElementById('category').value.trim(),
-            nextPaymentDate: document.getElementById('nextPaymentDate').value,
+            serviceName: serviceNameField.value.trim(),
+            amount: parseFloat(amountField.value),
+            currency: currencyField.value,
+            billingCycle: billingCycleField.value,
+            category: categoryField.value.trim(),
+            nextPaymentDate: nextPaymentDateField.value,
         };
         
         try {
@@ -525,6 +537,8 @@ const setupEventListeners = () => {
         } finally {
             confirmDeleteBtn.disabled = false;
             confirmDeleteBtn.textContent = originalButtonText;
+            // Помилку виправлено: hideConfirmModal() не було тут
+            hideConfirmModal();
         }
     });
 };
@@ -533,6 +547,7 @@ const setupEventListeners = () => {
 document.addEventListener('DOMContentLoaded', () => {
     initializeTheme();
     setupModalForms();
+    assignFormFields(); // Тепер ми присвоюємо змінні після створення полів
     setupEventListeners();
     initializeFirebase();
 });
