@@ -4,33 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SubWatch | Менеджер Підписок</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Custom scrollbar for a cleaner look */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1f2937;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4b5563;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #6b7280;
-        }
-        /* Style for the date input placeholder */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(0.8);
-        }
-    </style>
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-gray-900 text-gray-200 antialiased">
 
@@ -64,34 +45,25 @@
 
         <!-- Main App Content (hidden until login) -->
         <div id="appContent" class="hidden">
-            <!-- Add Subscription Button -->
             <div class="flex justify-center mb-8">
                 <button id="openModalBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2 -mt-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2 -mt-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
                     Додати Підписку
                 </button>
             </div>
             
-            <!-- Total Spending -->
             <div id="totalSpending" class="text-center mb-8 text-gray-400"></div>
 
-            <!-- Subscriptions List -->
             <div id="subscriptionsList" class="space-y-4">
-                <!-- Subscription items will be injected here by JS -->
+                <!-- Subscription items are dynamically injected here -->
             </div>
 
-            <!-- Placeholder for empty state -->
             <div id="emptyState" class="hidden text-center py-12 px-6 bg-gray-800 rounded-lg mt-8">
-                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                 <h3 class="mt-2 text-lg font-medium text-white">Список підписок порожній</h3>
                 <p class="mt-1 text-sm text-gray-400">Натисніть "Додати Підписку", щоб почати.</p>
             </div>
         </div>
-
     </div>
 
     <!-- Add/Edit Subscription Modal -->
@@ -119,6 +91,19 @@
                             </select>
                         </div>
                     </div>
+                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="billingCycle" class="block text-sm font-medium text-gray-300 mb-1">Період оплати</label>
+                            <select id="billingCycle" class="w-full bg-gray-700 border-gray-600 text-white rounded-lg px-4 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="monthly">Щомісяця</option>
+                                <option value="yearly">Щороку</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="category" class="block text-sm font-medium text-gray-300 mb-1">Категорія</label>
+                            <input type="text" id="category" class="w-full bg-gray-700 border-gray-600 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Напр. Розваги">
+                        </div>
+                    </div>
                     <div>
                         <label for="nextPaymentDate" class="block text-sm font-medium text-gray-300 mb-1">Дата наступного платежу</label>
                         <input type="date" id="nextPaymentDate" class="w-full bg-gray-700 border-gray-600 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
@@ -133,14 +118,12 @@
     </div>
     
     <!-- Custom Notification Alert -->
-    <div id="notification" class="fixed bottom-5 right-5 bg-yellow-500 text-gray-900 p-4 rounded-lg shadow-lg z-50 hidden max-w-sm">
+    <div id="notification" class="fixed bottom-5 right-5 bg-yellow-500 text-white p-4 rounded-lg shadow-lg z-50 hidden max-w-sm">
       <div class="flex items-start">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-yellow-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <div id="notificationContent">
-            <!-- Notification messages will be injected here -->
-        </div>
+        <div id="notificationContent"></div>
       </div>
     </div>
 
@@ -158,390 +141,7 @@
         </div>
     </div>
 
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // DOM Elements
-            const userProfile = document.getElementById('userProfile');
-            const userAvatar = document.getElementById('userAvatar');
-            const userName = document.getElementById('userName');
-            const signOutBtn = document.getElementById('signOutBtn');
-            const signInBtn = document.getElementById('signInBtn');
-            const loginContainer = document.getElementById('loginContainer');
-            const appContent = document.getElementById('appContent');
-            
-            const openModalBtn = document.getElementById('openModalBtn');
-            const closeModalBtn = document.getElementById('closeModalBtn');
-            const subscriptionModal = document.getElementById('subscriptionModal');
-            const modalContent = document.getElementById('modalContent');
-            const subscriptionForm = document.getElementById('subscriptionForm');
-            const subscriptionsList = document.getElementById('subscriptionsList');
-            const emptyState = document.getElementById('emptyState');
-            const totalSpendingEl = document.getElementById('totalSpending');
-            const notification = document.getElementById('notification');
-            const notificationContent = document.getElementById('notificationContent');
-            const confirmModal = document.getElementById('confirmModal');
-            const confirmCancelBtn = document.getElementById('confirmCancelBtn');
-            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-            let subscriptionToDeleteId = null;
-
-            // Form Fields
-            const subscriptionIdField = document.getElementById('subscriptionId');
-            const serviceNameField = document.getElementById('serviceName');
-            const amountField = document.getElementById('amount');
-            const currencyField = document.getElementById('currency');
-            const nextPaymentDateField = document.getElementById('nextPaymentDate');
-            const modalTitle = document.getElementById('modalTitle');
-            
-            // --- Firebase Setup ---
-
-            // =======================================================================
-            const firebaseConfig = {
-                apiKey: "AIzaSyAzw99mWK9lHlMpFpcJ31wrAsrtGZfxj_k",
-                authDomain: "subwatch-subscription-re-567e2.firebaseapp.com",
-                projectId: "subwatch-subscription-re-567e2",
-                storageBucket: "subwatch-subscription-re-567e2.firebasestorage.app",
-                messagingSenderId: "132090557441",
-                appId: "1:132090557441:web:ac16dc7bc8c7bf4ddcbc00"
-            };
-            // =======================================================================
-
-            const appId = firebaseConfig.projectId; // Автоматично беремо ID проєкту
-            let app, db, auth, userId, subscriptionsCollection;
-            let unsubscribe; // To stop listener on logout
-            
-            setLogLevel('debug');
-
-            // --- Data Management ---
-            let subscriptions = [];
-
-            async function initializeFirebase() {
-                try {
-                    // Перевірка, чи конфігурація була змінена
-                    if (!firebaseConfig || firebaseConfig.apiKey === "YOUR_API_KEY") {
-                        console.error("Помилка: Firebase конфігурація не була встановлена. Будь ласка, вставте ваш firebaseConfig у код.");
-                        loginContainer.innerHTML = `<p class="text-red-400">Помилка конфігурації Firebase. Перевірте консоль для деталей.</p>`;
-                        loginContainer.classList.remove('hidden');
-                        return;
-                    }
-
-                    app = initializeApp(firebaseConfig);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-
-                    onAuthStateChanged(auth, (user) => {
-                        if (user) {
-                            // User is signed in
-                            userId = user.uid;
-                            console.log("Authenticated user:", userId);
-                            updateUIForUser(user);
-                            subscriptionsCollection = collection(db, `artifacts/${appId}/users/${userId}/subscriptions`);
-                            listenForSubscriptions();
-                        } else {
-                            // User is signed out
-                            console.log("User is signed out.");
-                            updateUIForGuest();
-                        }
-                    });
-                } catch (e) {
-                    console.error("Firebase initialization failed:", e);
-                }
-            }
-
-            const signInWithGoogle = async () => {
-                const provider = new GoogleAuthProvider();
-                try {
-                    await signInWithPopup(auth, provider);
-                } catch (error) {
-                    console.error("Google Sign-In failed:", error);
-                }
-            };
-
-            const signOutUser = async () => {
-                try {
-                    await signOut(auth);
-                } catch (error) {
-                    console.error("Sign-Out failed:", error);
-                }
-            };
-            
-            const updateUIForUser = (user) => {
-                userProfile.classList.remove('hidden');
-                appContent.classList.remove('hidden');
-                loginContainer.classList.add('hidden');
-                
-                userAvatar.src = user.photoURL || 'https://placehold.co/40x40/64748b/ffffff?text=U';
-                userName.textContent = user.displayName || 'Користувач';
-            };
-            
-            const updateUIForGuest = () => {
-                if (unsubscribe) unsubscribe(); // Detach the old listener
-                subscriptions = [];
-                renderSubscriptions(); // Clear the list
-                userProfile.classList.add('hidden');
-                appContent.classList.add('hidden');
-                loginContainer.classList.remove('hidden');
-            };
-
-            const listenForSubscriptions = () => {
-                if (!subscriptionsCollection) return;
-                if (unsubscribe) unsubscribe(); // Detach any existing listener before creating a new one
-
-                unsubscribe = onSnapshot(query(subscriptionsCollection), (snapshot) => {
-                    subscriptions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    renderSubscriptions();
-                    checkNotifications();
-                }, (error) => {
-                    console.error("Error listening to subscriptions:", error);
-                });
-            };
-            
-            // --- UI Functions ---
-            const renderSubscriptions = () => {
-                subscriptionsList.innerHTML = '';
-                
-                if (subscriptions.length === 0) {
-                    emptyState.classList.remove('hidden');
-                    totalSpendingEl.classList.add('hidden');
-                    return;
-                }
-                
-                emptyState.classList.add('hidden');
-                totalSpendingEl.classList.remove('hidden');
-
-                subscriptions.sort((a, b) => {
-                    const daysA = getDaysRemaining(a.nextPaymentDate);
-                    const daysB = getDaysRemaining(b.nextPaymentDate);
-                    return daysA - daysB;
-                });
-
-                let totalMonthlySpending = {};
-
-                subscriptions.forEach(sub => {
-                    if (!totalMonthlySpending[sub.currency]) {
-                        totalMonthlySpending[sub.currency] = 0;
-                    }
-                    totalMonthlySpending[sub.currency] += parseFloat(sub.amount);
-
-                    const daysRemaining = getDaysRemaining(sub.nextPaymentDate);
-                    const { text, colorClass } = getDaysRemainingInfo(daysRemaining);
-                    
-                    const formattedDate = new Date(sub.nextPaymentDate).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
-                    const currencySymbol = getCurrencySymbol(sub.currency);
-
-                    const subElement = document.createElement('div');
-                    subElement.className = `bg-gray-800 p-4 rounded-lg shadow-md flex items-center justify-between transition-transform transform hover:-translate-y-1 cursor-pointer`;
-                    subElement.dataset.id = sub.id;
-                    
-                    subElement.innerHTML = `
-                        <div class="flex items-center space-x-4">
-                             <div class="w-2.5 h-16 rounded-full ${colorClass}"></div>
-                             <div>
-                                <p class="font-bold text-lg text-white">${sub.serviceName}</p>
-                                <p class="text-sm text-gray-400">${formattedDate}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                             <div class="text-right">
-                                <p class="font-semibold text-lg text-white">${sub.amount} ${currencySymbol}</p>
-                                <p class="text-xs font-medium ${getDaysRemainingInfo(daysRemaining).textColorClass}">${text}</p>
-                            </div>
-                            <button class="delete-btn text-gray-500 hover:text-red-500 transition p-2" data-id="${sub.id}">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
-                            </button>
-                        </div>
-                    `;
-                    subscriptionsList.appendChild(subElement);
-                });
-                
-                renderTotalSpending(totalMonthlySpending);
-            };
-            
-            const renderTotalSpending = (totals) => {
-                 let totalText = "Загальні витрати на місяць: ";
-                 const parts = Object.entries(totals).map(([currency, amount]) => {
-                     return `<strong class="text-white">${amount.toFixed(2)} ${getCurrencySymbol(currency)}</strong>`;
-                 });
-                 if (parts.length === 0) {
-                     totalSpendingEl.innerHTML = '';
-                 } else {
-                     totalSpendingEl.innerHTML = totalText + parts.join(' + ');
-                 }
-            };
-
-            const checkNotifications = () => {
-                const upcomingSubs = subscriptions.filter(sub => {
-                    const days = getDaysRemaining(sub.nextPaymentDate);
-                    return days >= 0 && days <= 3;
-                });
-
-                if (upcomingSubs.length > 0) {
-                    notificationContent.innerHTML = upcomingSubs.map(sub => 
-                        `<p class="mb-1"><strong>${sub.serviceName}</strong> - оплата через ${getDaysRemainingText(getDaysRemaining(sub.nextPaymentDate))}.</p>`
-                    ).join('');
-                    notification.classList.remove('hidden');
-                    
-                    setTimeout(() => {
-                        notification.classList.add('hidden');
-                    }, 8000);
-                } else {
-                    notification.classList.add('hidden');
-                }
-            };
-
-            // --- Helper Functions ---
-            const getDaysRemaining = (dateString) => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const paymentDate = new Date(dateString);
-                paymentDate.setHours(0,0,0,0);
-                const diffTime = paymentDate - today;
-                return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            };
-            
-            const getDaysRemainingText = (days) => {
-                if (days < 0) return 'Протерміновано';
-                if (days === 0) return 'Сьогодні';
-                if (days === 1) return '1 день';
-                if (days > 1 && days < 5) return `${days} дні`;
-                return `${days} днів`;
-            }
-
-            const getDaysRemainingInfo = (days) => {
-                let text = `Залишилось ${getDaysRemainingText(days)}`;
-                let colorClass = 'bg-green-500';
-                let textColorClass = 'text-green-400';
-
-                if (days < 0) {
-                    text = `Протерміновано ${getDaysRemainingText(Math.abs(days))}`;
-                    colorClass = 'bg-red-500';
-                    textColorClass = 'text-red-400';
-                } else if (days <= 3) {
-                    colorClass = 'bg-red-500';
-                    textColorClass = 'text-red-400';
-                } else if (days <= 7) {
-                    colorClass = 'bg-yellow-500';
-                    textColorClass = 'text-yellow-400';
-                }
-                return { text, colorClass, textColorClass };
-            };
-
-            const getCurrencySymbol = (currency) => {
-                switch (currency) {
-                    case 'UAH': return '₴';
-                    case 'USD': return '$';
-                    case 'EUR': return '€';
-                    default: return '';
-                }
-            };
-
-            // --- Modal Management ---
-            const showModal = (isEdit = false, sub = null) => {
-                subscriptionForm.reset();
-                if (isEdit && sub) {
-                    modalTitle.textContent = "Редагувати Підписку";
-                    subscriptionIdField.value = sub.id;
-                    serviceNameField.value = sub.serviceName;
-                    amountField.value = sub.amount;
-                    currencyField.value = sub.currency;
-                    nextPaymentDateField.value = new Date(sub.nextPaymentDate).toISOString().split('T')[0];
-                } else {
-                    modalTitle.textContent = "Нова Підписка";
-                    subscriptionIdField.value = '';
-                    const today = new Date();
-                    today.setDate(today.getDate() + 1);
-                    nextPaymentDateField.value = today.toISOString().split('T')[0];
-                }
-                subscriptionModal.classList.remove('hidden');
-                setTimeout(() => modalContent.classList.add('scale-100'), 10);
-            };
-
-            const hideModal = () => {
-                modalContent.classList.remove('scale-100');
-                subscriptionModal.classList.add('hidden');
-            };
-
-            const showConfirmModal = (id) => {
-                subscriptionToDeleteId = id;
-                confirmModal.classList.remove('hidden');
-            };
-
-            const hideConfirmModal = () => {
-                subscriptionToDeleteId = null;
-                confirmModal.classList.add('hidden');
-            };
-
-            // --- Event Listeners ---
-            signInBtn.addEventListener('click', signInWithGoogle);
-            signOutBtn.addEventListener('click', signOutUser);
-
-            openModalBtn.addEventListener('click', () => showModal());
-            closeModalBtn.addEventListener('click', hideModal);
-            subscriptionModal.addEventListener('click', (e) => {
-                if (e.target === subscriptionModal) hideModal();
-            });
-
-            subscriptionForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const id = subscriptionIdField.value;
-                const subscriptionData = {
-                    serviceName: serviceNameField.value.trim(),
-                    amount: parseFloat(amountField.value),
-                    currency: currencyField.value,
-                    nextPaymentDate: nextPaymentDateField.value,
-                };
-                
-                try {
-                    if (id) {
-                        const docRef = doc(db, `artifacts/${appId}/users/${userId}/subscriptions`, id);
-                        await updateDoc(docRef, subscriptionData);
-                    } else {
-                        await addDoc(subscriptionsCollection, subscriptionData);
-                    }
-                    hideModal();
-                } catch (error) {
-                    console.error("Error saving subscription:", error);
-                }
-            });
-            
-            subscriptionsList.addEventListener('click', (e) => {
-                const deleteButton = e.target.closest('.delete-btn');
-                if (deleteButton) {
-                    const id = deleteButton.dataset.id;
-                    showConfirmModal(id);
-                    return;
-                }
-                
-                const card = e.target.closest('[data-id]');
-                if (card) {
-                    const subId = card.dataset.id;
-                    const subToEdit = subscriptions.find(s => s.id == subId);
-                    if (subToEdit) showModal(true, subToEdit);
-                }
-            });
-
-            confirmCancelBtn.addEventListener('click', hideConfirmModal);
-            confirmDeleteBtn.addEventListener('click', async () => {
-                if (subscriptionToDeleteId) {
-                    try {
-                        const docRef = doc(db, `artifacts/${appId}/users/${userId}/subscriptions`, subscriptionToDeleteId);
-                        await deleteDoc(docRef);
-                    } catch (error) {
-                        console.error("Error deleting subscription:", error);
-                    } finally {
-                        hideConfirmModal();
-                    }
-                }
-            });
-
-            // --- Initial Load ---
-            initializeFirebase();
-        });
-    </script>
+    <!-- Main Application Script -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
-

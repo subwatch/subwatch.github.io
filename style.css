@@ -1,0 +1,34 @@
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Custom scrollbar for a cleaner look */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+}
+
+/* Style for the date input placeholder */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+}
+
+/* Custom style for the category badge on a subscription card */
+.category-badge {
+    background-color: #374151; /* bg-gray-700 */
+    color: #d1d5db; /* text-gray-300 */
+    padding: 2px 8px;
+    border-radius: 9999px; /* rounded-full */
+    font-size: 0.75rem; /* text-sm */
+    font-weight: 500;
+    white-space: nowrap;
+}
