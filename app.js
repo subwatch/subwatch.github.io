@@ -29,6 +29,9 @@ const notificationContent = document.getElementById('notificationContent');
 const confirmModal = document.getElementById('confirmModal');
 const confirmCancelBtn = document.getElementById('confirmCancelBtn');
 const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+const sunIcon = document.getElementById('sunIcon');
+const moonIcon = document.getElementById('moonIcon');
 
 // --- Form Fields ---
 const subscriptionIdField = document.getElementById('subscriptionId');
@@ -60,9 +63,35 @@ const firebaseConfig = {
 };
 // =======================================================================
 
+// --- Theme Management ---
+const applyTheme = (theme) => {
+    if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        sunIcon.classList.remove('hidden');
+        moonIcon.classList.add('hidden');
+    } else {
+        document.documentElement.classList.remove('dark');
+        sunIcon.classList.add('hidden');
+        moonIcon.classList.remove('hidden');
+    }
+};
+
+const toggleTheme = () => {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const newTheme = isDarkMode ? 'light' : 'dark';
+    localStorage.setItem('theme', newTheme);
+    applyTheme(newTheme);
+};
+
+const initializeTheme = () => {
+    const savedTheme = localStorage.getItem('theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+    applyTheme(theme);
+};
+
 
 // --- Helper Functions ---
-
 const getDaysRemaining = (dateString) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -84,18 +113,18 @@ const getDaysRemainingText = (days) => {
 const getDaysRemainingInfo = (days) => {
     let text = `Залишилось ${getDaysRemainingText(days)}`;
     let colorClass = 'bg-green-500';
-    let textColorClass = 'text-green-400';
+    let textColorClass = 'text-green-400 dark:text-green-300';
 
     if (days < 0) {
         text = `Протерміновано на ${getDaysRemainingText(Math.abs(days))}`;
         colorClass = 'bg-red-500';
-        textColorClass = 'text-red-400';
+        textColorClass = 'text-red-400 dark:text-red-300';
     } else if (days <= URGENT_DAYS_THRESHOLD) {
         colorClass = 'bg-red-500';
-        textColorClass = 'text-red-400';
+        textColorClass = 'text-red-400 dark:text-red-300';
     } else if (days <= WARNING_DAYS_THRESHOLD) {
         colorClass = 'bg-yellow-500';
-        textColorClass = 'text-yellow-400';
+        textColorClass = 'text-yellow-500 dark:text-yellow-400';
     }
     return { text, colorClass, textColorClass };
 };
@@ -110,30 +139,30 @@ const getCurrencySymbol = (currency) => {
 const createSubscriptionElement = (sub) => {
     const daysRemaining = getDaysRemaining(sub.nextPaymentDate);
     const { text, colorClass, textColorClass } = getDaysRemainingInfo(daysRemaining);
-    const formattedDate = new Date(sub.nextPaymentDate).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
+    const formattedDate = new Date(`${sub.nextPaymentDate}T00:00:00`).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
     const currencySymbol = getCurrencySymbol(sub.currency);
 
     const subElement = document.createElement('div');
-    subElement.className = `bg-gray-800 p-4 rounded-lg shadow-md flex items-center justify-between transition-transform transform hover:-translate-y-1 cursor-pointer`;
+    subElement.className = `bg-white dark:bg-gray-800/50 p-4 rounded-xl shadow-md border border-slate-200 dark:border-gray-700 flex items-center justify-between transition-all hover:shadow-lg hover:border-indigo-500/50 dark:hover:border-indigo-500/50 cursor-pointer`;
     subElement.dataset.id = sub.id;
     
     subElement.innerHTML = `
         <div class="flex items-center space-x-4 flex-1 min-w-0">
-             <div class="w-2.5 h-16 rounded-full ${colorClass}"></div>
+             <div class="w-2 h-16 rounded-full ${colorClass}"></div>
              <div class="min-w-0">
-                <div class="flex items-center gap-x-3">
-                    <p class="font-bold text-lg text-white truncate">${sub.serviceName}</p>
+                <div class="flex items-center gap-x-3 flex-wrap">
+                    <p class="font-bold text-lg text-slate-800 dark:text-white truncate">${sub.serviceName}</p>
                     ${sub.category ? `<span class="category-badge">${sub.category}</span>` : ''}
                 </div>
-                <p class="text-sm text-gray-400">${formattedDate}</p>
+                <p class="text-sm text-slate-500 dark:text-gray-400">${formattedDate}</p>
             </div>
         </div>
         <div class="flex items-center space-x-4 ml-4">
              <div class="text-right">
-                <p class="font-semibold text-lg text-white">${sub.amount} ${currencySymbol}</p>
+                <p class="font-semibold text-lg text-slate-900 dark:text-white">${sub.amount} ${currencySymbol}</p>
                 <p class="text-xs font-medium ${textColorClass}">${text}</p>
             </div>
-            <button class="delete-btn text-gray-500 hover:text-red-500 transition p-2" data-id="${sub.id}">
+            <button class="delete-btn text-slate-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-500 transition p-2 rounded-full hover:bg-red-500/10" data-id="${sub.id}">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
             </button>
         </div>
@@ -146,7 +175,6 @@ const renderTotalSpending = () => {
         if (!acc[sub.currency]) {
             acc[sub.currency] = 0;
         }
-        // FIXED: Added fallback for billingCycle
         const isYearly = (sub.billingCycle || 'monthly') === 'yearly';
         const amount = isYearly ? parseFloat(sub.amount) / 12 : parseFloat(sub.amount);
         acc[sub.currency] += amount;
@@ -154,12 +182,11 @@ const renderTotalSpending = () => {
     }, {});
 
     const parts = Object.entries(totals).map(([currency, amount]) => 
-        `<strong class="text-white">${amount.toFixed(2)} ${getCurrencySymbol(currency)}</strong>`
+        `<strong class="text-slate-800 dark:text-white">${amount.toFixed(2)} ${getCurrencySymbol(currency)}</strong>`
     );
 
     totalSpendingEl.innerHTML = parts.length > 0 ? `Приблизні витрати на місяць: ${parts.join(' + ')}` : '';
 };
-
 
 const checkNotifications = () => {
     const upcomingSubs = subscriptions.filter(sub => {
@@ -182,7 +209,7 @@ const checkNotifications = () => {
 const showNotification = (message, isError = false) => {
     notificationContent.innerHTML = `<p>${message}</p>`;
     notification.classList.remove('hidden', 'bg-yellow-500', 'bg-red-500', 'bg-green-500');
-    notification.classList.add(isError ? 'bg-red-500' : 'bg-green-500');
+    notification.classList.add(isError ? 'bg-red-600' : 'bg-green-600');
     setTimeout(() => notification.classList.add('hidden'), 5000);
 };
 
@@ -203,7 +230,48 @@ const updateUIOnDataChange = () => {
     }
 };
 
-// --- Modal Management ---
+// --- Modal Management & Forms ---
+const setupModalForms = () => {
+    const formContent = `
+        <div>
+            <label for="serviceName" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Назва сервісу</label>
+            <input type="text" id="serviceName" class="form-input" placeholder="Напр. Netflix, Spotify" required>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="sm:col-span-2">
+                <label for="amount" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Сума</label>
+                <input type="number" id="amount" step="0.01" min="0" class="form-input" placeholder="10.99" required>
+            </div>
+            <div>
+                <label for="currency" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Валюта</label>
+                <select id="currency" class="form-input">
+                    <option>UAH</option>
+                    <option>USD</option>
+                    <option>EUR</option>
+                </select>
+            </div>
+        </div>
+         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="billingCycle" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Період оплати</label>
+                <select id="billingCycle" class="form-input">
+                    <option value="monthly">Щомісяця</option>
+                    <option value="yearly">Щороку</option>
+                </select>
+            </div>
+            <div>
+                <label for="category" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Категорія</label>
+                <input type="text" id="category" class="form-input" placeholder="Напр. Розваги">
+            </div>
+        </div>
+        <div>
+            <label for="nextPaymentDate" class="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">Дата наступного платежу</label>
+            <input type="date" id="nextPaymentDate" class="form-input" required>
+        </div>
+    `;
+    subscriptionForm.querySelector('.space-y-5').innerHTML = formContent;
+};
+
 const showModal = (isEdit = false, sub = null) => {
     subscriptionForm.reset();
     if (isEdit && sub) {
@@ -246,12 +314,9 @@ const hideConfirmModal = () => {
 };
 
 // --- Firebase & Data Logic ---
-
-// NEW: Function to automatically update overdue subscriptions
 const updateOverdueSubscriptions = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const updates = [];
 
     for (const sub of subscriptions) {
@@ -267,7 +332,6 @@ const updateOverdueSubscriptions = async () => {
                     nextDate.setMonth(nextDate.getMonth() + 1);
                 }
             }
-            
             const updatedDate = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
             const docRef = doc(db, `users/${userId}/subscriptions`, sub.id);
             updates.push(updateDoc(docRef, { nextPaymentDate: updatedDate }));
@@ -276,7 +340,6 @@ const updateOverdueSubscriptions = async () => {
     
     if (updates.length > 0) {
         await Promise.all(updates);
-        console.log(`${updates.length} subscription(s) were updated.`);
     }
 };
 
@@ -285,10 +348,12 @@ const listenForSubscriptions = () => {
     if (unsubscribe) unsubscribe();
 
     unsubscribe = onSnapshot(query(subscriptionsCollection), async (snapshot) => {
+        let needsOverdueUpdate = false;
         snapshot.docChanges().forEach((change) => {
             const sourceData = { id: change.doc.id, ...change.doc.data() };
             if (change.type === "added") {
                 subscriptions.push(sourceData);
+                if (getDaysRemaining(sourceData.nextPaymentDate) < 0) needsOverdueUpdate = true;
             }
             if (change.type === "modified") {
                 const index = subscriptions.findIndex(s => s.id === sourceData.id);
@@ -299,7 +364,8 @@ const listenForSubscriptions = () => {
             }
         });
         
-        await updateOverdueSubscriptions();
+        if(needsOverdueUpdate) await updateOverdueSubscriptions();
+        
         updateUIOnDataChange();
         
     }, (error) => {
@@ -310,7 +376,6 @@ const listenForSubscriptions = () => {
 
 const initializeFirebase = () => {
     try {
-        // FIXED: Corrected Firebase config check
         if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
             console.error("Firebase config is not set correctly. Please paste your config object.");
             loginContainer.innerHTML = `<p class="text-red-400">Помилка конфігурації Firebase.</p>`;
@@ -342,7 +407,7 @@ const updateUIForUser = (user) => {
     userProfile.classList.remove('hidden');
     appContent.classList.remove('hidden');
     loginContainer.classList.add('hidden');
-    userAvatar.src = user.photoURL || `https://placehold.co/40x40/64748b/ffffff?text=${user.displayName?.[0] || 'U'}`;
+    userAvatar.src = user.photoURL || `https://placehold.co/40x40/cbd5e1/475569?text=${user.displayName?.[0] || 'U'}`;
     userName.textContent = user.displayName || 'Користувач';
 };
 
@@ -376,6 +441,7 @@ const signOutUser = async () => {
 
 // --- Event Listeners ---
 const setupEventListeners = () => {
+    themeToggleBtn.addEventListener('click', toggleTheme);
     signInBtn.addEventListener('click', signInWithGoogle);
     signOutBtn.addEventListener('click', signOutUser);
     openModalBtn.addEventListener('click', () => showModal());
@@ -396,18 +462,18 @@ const setupEventListeners = () => {
     subscriptionForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submitButton = e.target.querySelector('button[type="submit"]');
-        const originalButtonText = submitButton.innerHTML;
+        const originalButtonText = submitButton.textContent;
         submitButton.disabled = true;
         submitButton.innerHTML = 'Збереження...';
 
-        const id = subscriptionIdField.value;
+        const id = document.getElementById('subscriptionId').value;
         const subscriptionData = {
-            serviceName: serviceNameField.value.trim(),
-            amount: parseFloat(amountField.value),
-            currency: currencyField.value,
-            billingCycle: billingCycleField.value,
-            category: categoryField.value.trim(),
-            nextPaymentDate: nextPaymentDateField.value,
+            serviceName: document.getElementById('serviceName').value.trim(),
+            amount: parseFloat(document.getElementById('amount').value),
+            currency: document.getElementById('currency').value,
+            billingCycle: document.getElementById('billingCycle').value,
+            category: document.getElementById('category').value.trim(),
+            nextPaymentDate: document.getElementById('nextPaymentDate').value,
         };
         
         try {
@@ -424,7 +490,7 @@ const setupEventListeners = () => {
             showNotification("Помилка: не вдалося зберегти підписку.", true);
         } finally {
             submitButton.disabled = false;
-            submitButton.innerHTML = originalButtonText;
+            submitButton.textContent = originalButtonText;
         }
     });
     
@@ -446,7 +512,7 @@ const setupEventListeners = () => {
     confirmDeleteBtn.addEventListener('click', async () => {
         if (!subscriptionToDeleteId) return;
 
-        const originalButtonText = confirmDeleteBtn.innerHTML;
+        const originalButtonText = confirmDeleteBtn.textContent;
         confirmDeleteBtn.disabled = true;
         confirmDeleteBtn.innerHTML = 'Видалення...';
         
@@ -458,16 +524,16 @@ const setupEventListeners = () => {
             showNotification("Помилка: не вдалося видалити підписку.", true);
         } finally {
             confirmDeleteBtn.disabled = false;
-            confirmDeleteBtn.innerHTML = originalButtonText;
-            hideConfirmModal();
+            confirmDeleteBtn.textContent = originalButtonText;
         }
     });
 };
 
 // --- App Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
+    initializeTheme();
+    setupModalForms();
     setupEventListeners();
     initializeFirebase();
 });
-
 
