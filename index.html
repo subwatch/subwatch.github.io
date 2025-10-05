@@ -198,15 +198,24 @@
             const modalTitle = document.getElementById('modalTitle');
             
             // --- Firebase Setup ---
-            const firebaseConfig = 
+
+            // =======================================================================
+            // >> КРОК 8: ВСТАВТЕ ВАШ ОБ'ЄКТ `firebaseConfig` СЮДИ <<
+            // Замініть цей демонстраційний об'єкт на ваш реальний `firebaseConfig`,
+            // який ви скопіювали з консолі Firebase на Кроці 3.
+            // Переконайтеся, що ви вставляєте його після знаку "="
+            // =======================================================================
+            const firebaseConfig = {
                 apiKey: "AIzaSyAzw99mWK9lHlMpFpcJ31wrAsrtGZfxj_k",
                 authDomain: "subwatch-subscription-re-567e2.firebaseapp.com",
                 projectId: "subwatch-subscription-re-567e2",
                 storageBucket: "subwatch-subscription-re-567e2.firebasestorage.app",
                 messagingSenderId: "132090557441",
-                appId: "1:132090557441:web:ac16dc7bc8c7bf4ddcbc00",
-                measurementId: "G-01Z35NDF7P");
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                appId: "1:132090557441:web:ac16dc7bc8c7bf4ddcbc00"
+            };
+            // =======================================================================
+
+            const appId = firebaseConfig.projectId; // Автоматично беремо ID проєкту
             let app, db, auth, userId, subscriptionsCollection;
             let unsubscribe; // To stop listener on logout
             
@@ -217,6 +226,14 @@
 
             async function initializeFirebase() {
                 try {
+                    // Перевірка, чи конфігурація була змінена
+                    if (!firebaseConfig || firebaseConfig.apiKey === "YOUR_API_KEY") {
+                        console.error("Помилка: Firebase конфігурація не була встановлена. Будь ласка, вставте ваш firebaseConfig у код.");
+                        loginContainer.innerHTML = `<p class="text-red-400">Помилка конфігурації Firebase. Перевірте консоль для деталей.</p>`;
+                        loginContainer.classList.remove('hidden');
+                        return;
+                    }
+
                     app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
                     auth = getAuth(app);
