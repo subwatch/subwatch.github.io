@@ -2,33 +2,50 @@ body {
     font-family: 'Inter', sans-serif;
 }
 
-/* Custom scrollbar for a cleaner look */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
 }
 ::-webkit-scrollbar-track {
-    background: #1f2937;
+    background: #e2e8f0; /* slate-200 */
+}
+.dark ::-webkit-scrollbar-track {
+    background: #1f2937; /* gray-800 */
 }
 ::-webkit-scrollbar-thumb {
-    background: #4b5563;
+    background: #94a3b8; /* slate-400 */
     border-radius: 10px;
 }
+.dark ::-webkit-scrollbar-thumb {
+    background: #4b5563; /* gray-600 */
+}
 ::-webkit-scrollbar-thumb:hover {
-    background: #6b7280;
+    background: #64748b; /* slate-500 */
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: #6b7280; /* gray-500 */
 }
 
-/* Style for the date input placeholder */
+/* Style for the date input picker icon */
 input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.5);
+}
+.dark input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(0.8);
 }
 
-/* Custom style for the category badge on a subscription card */
+/* Custom style for the category badge */
 .category-badge {
-    background-color: #374151; /* bg-gray-700 */
-    color: #d1d5db; /* text-gray-300 */
+    background-color: #e2e8f0; /* bg-slate-200 */
+    color: #475569; /* text-slate-600 */
     padding: 2px 8px;
-    border-radius: 9999px; /* rounded-full */
-    font-size: 0.75rem; /* text-sm */
+    border-radius: 9999px;
+    font-size: 0.75rem;
     font-weight: 500;
     white-space: nowrap;
 }
+.dark .category-badge {
+    background-color: #374151; /* bg-gray-700 */
+    color: #d1d5db; /* text-gray-300 */
+}
+
